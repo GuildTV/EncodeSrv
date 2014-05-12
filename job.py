@@ -4,6 +4,11 @@ from datetime import datetime
 from string import maketrans
 from config import Config
 
+try:
+    import psutil
+except ImportError:
+    pass
+
 if(Config['database_type'] == "mysql"):
 	import MySQLdb
 else:
@@ -149,10 +154,15 @@ class FFmpegJob (threading.Thread):
 		except:
 			logging.exception("Job %s: Failed to update database", (self.jobreq['id']))
 
+		duration = 0;
+		complete = 0;
+		newComplete = 0;
+		line = ""
+
 		for _pass in (1, 2):
 			try:
 				logging.debug("Updating Status.")
-				self._update_status("Encoding Pass %d" % _pass, self.jobreq['id'])
+				self._update_status("Encoding Pass %d - %d%%" % (_pass, complete), self.jobreq['id'])
 				
 				logging.debug("Setting args.")
 				args['_Pass'] = _pass
@@ -163,9 +173,45 @@ class FFmpegJob (threading.Thread):
 				
 				
 				logging.debug("Opening subprocess: %s" % (FFmpegJob.FormatString % args))
-				cmd = subprocess.Popen(shlex.split(FFmpegJob.FormatString % args), cwd=dirname)
-				
+				cmd = subprocess.Popen(shlex.split(FFmpegJob.FormatString % args), cwd=dirname, bufsize=1,
+					stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+					universal_newlines=True)
+
+				try:
+					p = psutil.Process(cmd.pid)
+					p.nice(psutil.LOW_PRIORITY_CLASS)
+				except AttributeError:
+					pass
+
 				logging.debug("Waiting...")
+				while cmd.poll() is None:
+					line = cmd.stdout.readline()
+					m = re.search('Duration: (.*?), start:',line)
+					if(m):
+						d = m.group(1).split(":")
+						d.reverse()						
+						duration = float(d[0])
+						if (d[1]):
+							duration += int(d[1]) * 60
+					        if (d[2]):
+							duration += int(d[2]) * 60 * 60
+					
+					m = re.search('time=(.*?) bitrate',line)
+            				if(m):
+						d = m.group(1).split(":")
+						d.reverse()
+						newComplete = int(float(d[0]))
+						if (d[1]):
+							newComplete += int(d[1]) * 60
+					        if (d[2]):
+							newComplete += int(d[2]) * 60 * 60
+
+						newComplete = int(newComplete/duration*50) + (_pass-1)*50
+
+						if newComplete > complete:
+							complete = newComplete
+							self._update_status("Encoding Pass %d - %d%%" % (_pass, complete), self.jobreq['id'])
+
 				cmd.wait() # Magic!
 				logging.debug("Done Waiting.")
 				

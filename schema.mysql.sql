@@ -1,4 +1,4 @@
-CREATE TABLE `encode`.`encode_formats` (
+CREATE TABLE `encode_formats` (
 	`id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
 	`format_name` VARCHAR(200) NOT NULL COMMENT 'Name of the format (e.g. ipod)', 
 	`container` TEXT NOT NULL COMMENT 'name of the container (e.g. mp4)', 
@@ -19,9 +19,9 @@ CREATE TABLE `encode`.`encode_formats` (
 	`file_extension` VARCHAR(5) NOT NULL COMMENT 'Extension of the resulting file. (e.g. mp4, avi, mov etc). Note this can be different from the container value', 
 	`preset_string` TEXT NULL COMMENT 'A preset as understood by ffmpeg (e.g "medium")', 
 	`normalise_level` INT NULL COMMENT 'Optional LUFS level to normalise to (e.g -23)', 
-UNIQUE (`format_name`)) ENGINE = MyISAM COMMENT = 'Stores ffmpeg options for the Encode Formats for EncodeSrv';
+UNIQUE (`format_name`)) COMMENT = 'Stores ffmpeg options for the Encode Formats for EncodeSrv';
 
-CREATE TABLE `encode`.`encode_jobs` (
+CREATE TABLE `encode_jobs` (
 	`id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
 	`source_file` TEXT NOT NULL COMMENT 'Path to source file (e.g. /mnt/UserData/Shows/ManMan/Ep1/10_Man-Man-episode1_sum06.avi)', 
 	`destination_file` TEXT NOT NULL COMMENT 'Path to destination file (e.g. /mnt/videos/web/ipod/10_Man-Man-episode1_sum06.mp4)', 
@@ -31,4 +31,4 @@ CREATE TABLE `encode`.`encode_jobs` (
 	`working_directory` TEXT NULL COMMENT 'Stores the working directory once a job has started', 
 	`user_id` INT NULL COMMENT 'ID of the user that requested the job', 
 	`priority` INT NOT NULL DEFAULT '5' COMMENT 'Mainly for batch encode jobs like re-encodes. Could be used for giving certain events higher priority. Defaults to 5. Higher numbers= lower priority', 
-INDEX (`priority`)) ENGINE = MyISAM COMMENT = 'Stores the Encode Jobs for EncodeSrv';
+INDEX (`priority`)) COMMENT = 'Stores the Encode Jobs for EncodeSrv';
