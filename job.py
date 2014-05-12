@@ -178,6 +178,7 @@ class FFmpegJob (threading.Thread):
 					universal_newlines=True)
 
 				try:
+					print "Limiting "+str(cmd.pid)
 					p = psutil.Process(cmd.pid)
 					p.nice(psutil.IDLE_PRIORITY_CLASS)
 				except AttributeError:
