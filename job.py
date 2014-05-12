@@ -179,7 +179,7 @@ class FFmpegJob (threading.Thread):
 
 				try:
 					p = psutil.Process(cmd.pid)
-					p.nice(psutil.LOW_PRIORITY_CLASS)
+					p.nice(psutil.IDLE_PRIORITY_CLASS)
 				except AttributeError:
 					pass
 
