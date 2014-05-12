@@ -1,8 +1,13 @@
-import threading, psycopg2, Queue
+import threading, Queue
 import os.path, shlex, shutil, logging, time, subprocess, re
 from datetime import datetime
 from string import maketrans
 from config import Config
+
+if(Config['database_type'] == "mysql"):
+	import MySQLdb
+else:
+	import psycopg2
 
 class FFmpegJob (threading.Thread):
 	"""Encode job handler
@@ -15,7 +20,7 @@ class FFmpegJob (threading.Thread):
 	THREADPOOL = None
 
 	FormatString = """
-	ffmpeg -i \"%(_SourceFile)s\" -passlogfile \"%(_PassLogFile)s\"
+	%(_ffmpeg)s -i \"%(_SourceFile)s\" -passlogfile \"%(_PassLogFile)s\"
 	%(args_beginning)s -vcodec %(video_codec)s -b:v %(video_bitrate)s
 	%(_VPre)s -pass %(_Pass)s -s %(video_resolution)s -aspect %(aspect_ratio)s
 	%(args_video)s -acodec %(audio_codec)s -ar %(audio_samplerate)s
@@ -56,7 +61,7 @@ class FFmpegJob (threading.Thread):
 		# Create temp dir for this job
 		try:
 			dirname = os.path.join(Config['tmpfolder'], "%s--encode--%s" % (
-				os.path.basename(self.jobreq['source_file']), str(datetime.now()).replace(' ', '-')
+				os.path.basename(self.jobreq['source_file']), str(datetime.now()).replace(' ', '-').replace(':', '-')
 			))
 		except:
 			logging.debug("Job %s - Debug 1 failed", (self.jobreq['id']));
@@ -75,7 +80,10 @@ class FFmpegJob (threading.Thread):
 		
 		# Create database connection
 		try:
-			self.dbconn = psycopg2.connect(**Config['database'])
+			if(Config['database_type'] == "mysql"):
+				self.dbconn = MySQLdb.connect(**Config['database_mysql'])
+			else:
+				self.dbconn = psycopg2.connect(**Config['database_postgres'])
 			self.dbcur  = self.dbconn.cursor()
 		except:
 			logging.exception("Job %s: Could not connect to database",(self.jobreq['id']))
@@ -91,6 +99,8 @@ class FFmpegJob (threading.Thread):
 		
 			fetched = [x if x is not None else '' for x in self.dbcur.fetchone()]
 			args = dict(zip(cols, fetched))
+			
+			args['_ffmpeg'] = Config['ffmpeg_executable']
 			
 			# Process the special ones (the /^_[A-Z]/ ones)
 			args['_SourceFile'] = srcpath
@@ -115,7 +125,7 @@ class FFmpegJob (threading.Thread):
 		if args['normalise_level'] is not '':
 			try:
 				level = float(args['normalise_level'])
-				analysis = subprocess.check_output(["ffmpeg", "-i", srcpath, "-af", 
+				analysis = subprocess.check_output([Config["ffmpeg_executable"], "-i", srcpath, "-af", 
 					"ebur128", "-f", "null", "-y", "/dev/null"], stderr=subprocess.STDOUT)
 				maxvolume = re.search(r"Integrated loudness:$\s* I:\s*(-?\d*.\d*) LUFS", analysis,
 					flags=re.MULTILINE).group(1)

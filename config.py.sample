@@ -1,16 +1,30 @@
 # module config
 
 Config = {
-	"database": {
+	"database_type": "postgres",
+	"database_mysql": {
+		"host"    : "example.com",
+		"db"      : "dbname",
+		"user"    : "dbuser",
+		"passwd"  : "dbpass"
+	},
+	"database_postgres": {
 		"host"    : "example.com",
 		"database": "dbname",
 		"user"    : "dbuser",
 		"password": "dbpass"
 	},
 	"mail": {
-		"host"	: "mail.example.com",
-		"from"	: "encodesrv@example.com",
-		"to"	: "computing@example.com"
+		"host"	: "smtp.gmail.com",
+		"port"	: 587,
+		"from"	: "someone@example.com",
+		"username" : "someone@example.com",
+		"password": "",
+		"tls"	: True,
+		"to"	: "admin@example.com"
 	},
 	"tmpfolder": "/data/tmpencoding",
+	"logfile": "/var/log/encode.log",
+	
+	"ffmpeg_executable": "ffmpeg
 }

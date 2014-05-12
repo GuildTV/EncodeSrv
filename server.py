@@ -1,11 +1,15 @@
 #!/usr/bin/python
-import psycopg2, threading, Queue, time, sys, logging, logging.handlers
+import threading, Queue, time, sys, logging, logging.handlers, os
 from job import FFmpegJob
 
 from config import Config
-from daemon import Daemon
 
-LOG_FILENAME= "/var/log/encodesrv"
+if(Config['database_type'] == "mysql"):
+	import MySQLdb
+else:
+	import psycopg2
+
+LOG_FILENAME= Config["logfile"]
 LOG_FORMAT = '%(asctime)s:%(levelname)s:%(message)s'
 
 def main():
@@ -16,11 +20,20 @@ def main():
 	# Setup a basic logging system to file	
 	logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG, format=LOG_FORMAT)
 
+	cred = None
+	tls = None
+	if(Config["mail"]["password"] != ""):
+		cred = (Config['mail']['username'], Config['mail']['password'])
+	if(Config['mail']['tls'] == True):
+		tls = ()
+	
 	# Setup logging to email for critical failures
-	mailhandler = logging.handlers.SMTPHandler(mailhost=Config["mail"]["host"],
+	mailhandler = logging.handlers.SMTPHandler(mailhost=(Config["mail"]["host"],Config["mail"]["port"]),
 							fromaddr=Config["mail"]["from"],
 							toaddrs=Config["mail"]["to"],
-							subject='Encode Job Failure')
+							subject='Encode Job Failure',
+							credentials=cred,
+							secure=tls)
 	mailhandler.setLevel(logging.ERROR)
 	logging.getLogger('').addHandler(mailhandler)
 
@@ -31,7 +44,10 @@ def main():
 	
 	# Reset all crashed jobs
 	try:
-		dbconn = psycopg2.connect(**Config["database"])
+		if(Config['database_type'] == "mysql"):
+			dbconn = MySQLdb.connect(**Config['database_mysql'])
+		else:
+			dbconn = psycopg2.connect(**Config['database_postgres'])
 		cur = dbconn.cursor()
 		cur.execute("UPDATE encode_jobs SET status='Not Encoding' WHERE status !='Done' AND status != 'Error'")
 		dbconn.commit()
@@ -55,7 +71,10 @@ def main():
 	while True:
 		try:
 			# Connect to the db
-			conn = psycopg2.connect(**Config["database"])
+			if(Config['database_type'] == "mysql"):
+				conn = MySQLdb.connect(**Config['database_mysql'])
+			else:
+				conn = psycopg2.connect(**Config['database_postgres'])
 			cur = conn.cursor()
 			# Search the DB for jobs not being encoded
 			query = "SELECT %s FROM encode_jobs WHERE status = 'Not Encoding' ORDER BY priority DESC LIMIT "+str(6-FFmpegJob.THREADPOOL.qsize())
@@ -81,25 +100,29 @@ def main():
 		
 	return
 
-class EncodeSrvDaemon(Daemon):
-	def run(self):
+if os.name == 'nt':
+	if __name__ == "__main__":
 		main()
-
-	
-if __name__ == "__main__":
-#	main()
-	daemon = EncodeSrvDaemon('/tmp/encodesrv.pid')
-	if len(sys.argv) == 2:
-		if 'start' == sys.argv[1]:
-			daemon.start()
-		elif 'stop' == sys.argv[1]:
-			daemon.stop()
-		elif 'restart' == sys.argv[1]:
-			daemon.restart()
+else:
+	from daemon import Daemon
+	class EncodeSrvDaemon(Daemon):
+		def run(self):
+			main()
+			
+	if __name__ == "__main__":
+	#	main()
+		daemon = EncodeSrvDaemon('/tmp/encodesrv.pid')
+		if len(sys.argv) == 2:
+			if 'start' == sys.argv[1]:
+				daemon.start()
+			elif 'stop' == sys.argv[1]:
+				daemon.stop()
+			elif 'restart' == sys.argv[1]:
+				daemon.restart()
+			else:
+				print "Unknown command"
+				sys.exit(2)
+			sys.exit(0)
 		else:
-			print "Unknown command"
+			print "usage: %s start|stop|restart" % sys.argv[0]
 			sys.exit(2)
-		sys.exit(0)
-	else:
-		print "usage: %s start|stop|restart" % sys.argv[0]
-		sys.exit(2)

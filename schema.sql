@@ -223,7 +223,7 @@ CREATE TABLE encode_jobs (
     source_file text NOT NULL,
     destination_file text NOT NULL,
     format_id integer NOT NULL,
-    status encodestatus NOT NULL,
+    status text NOT NULL,
     video_id integer,
     working_directory text,
     user_id integer,
