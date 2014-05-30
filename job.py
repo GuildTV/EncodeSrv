@@ -56,17 +56,19 @@ class FFmpegJob (threading.Thread):
 	def run_impl(self):
 	
 		print "run_impl"
+		full_src = Config['storage_path'] + self.jobreq['source_file']
+		full_dest= Config['storage_path'] + self.jobreq['destination_file']
 			
 		# Check whether source file exists
 		try:
-			with open(self.jobreq['source_file']): pass
+			with open(full_src): pass
 		except IOError:
 			logging.exception("Job %s: Unable to open source file", (self.jobreq['id']))
 			
 		# Create temp dir for this job
 		try:
 			dirname = os.path.join(Config['tmpfolder'], "%s--encode--%s" % (
-				os.path.basename(self.jobreq['source_file']), str(datetime.now()).replace(' ', '-').replace(':', '-')
+				os.path.basename(full_src), str(datetime.now()).replace(' ', '-').replace(':', '-')
 			))
 		except:
 			logging.debug("Job %s - Debug 1 failed", (self.jobreq['id']));
@@ -77,7 +79,7 @@ class FFmpegJob (threading.Thread):
 			logging.debug("Job %s - Failed to create temporary directory", (self.jobreq['id']))
 		
 		try:
-			destleaf = os.path.basename(self.jobreq['destination_file'])
+			destleaf = os.path.basename(full_dest)
 			srcleaf = "%s-source%s" % os.path.splitext(destleaf)
 			srcpath = os.path.join(dirname, srcleaf)
 		except:
@@ -112,16 +114,16 @@ class FFmpegJob (threading.Thread):
 			args['_PassLogFile'] = os.path.join(dirname, "pass.log")
 	
 			args['_VPre'] = args['preset_string']
-			args['_TempDest'] = os.path.join(dirname, os.path.basename(self.jobreq['destination_file']))
+			args['_TempDest'] = os.path.join(dirname, os.path.basename(full_dest))
 		except:
 			logging.exception("Job %s - Debug 3 failed", (self.jobreq['id']));
 		
 		# Copy to local folder, rename source
 		try:
-			shutil.copyfile(self.jobreq['source_file'], srcpath)
+			shutil.copyfile(full_src, srcpath)
 		except:
 			logging.exception("Job %s: couldn't copy from %s to %s" % (
-				self.jobreq['id'],self.jobreq['source_file'], dirname
+				self.jobreq['id'],full_src, dirname
 			))
 			self._update_status("Error", self.jobreq['id'])
 			return
@@ -244,19 +246,19 @@ class FFmpegJob (threading.Thread):
 		# Copy file to intended destination
 		self._update_status("Moving File", self.jobreq['id'])
 		try:
-			logging.debug("Moving to: %s", (self.jobreq['destination_file']))
-			if not os.path.exists(os.path.dirname(self.jobreq['destination_file'])):
+			logging.debug("Moving to: %s", (full_dest))
+			if not os.path.exists(os.path.dirname(full_dest)):
 				logging.debug("Directory does not exist: %s. Creating it now.", 
-					os.path.dirname(self.jobreq['destination_file']))
+					os.path.dirname(full_dest))
 				try:
-					os.makedirs(os.path.dirname(self.jobreq['destination_file']))
+					os.makedirs(os.path.dirname(full_dest))
 				except OSError:
 					logging.exception("Job %s: Failed to create destination directory %s" % (self.jobreq['id'],
-						os.path.dirname(self.jobreq['destination_file'])))
+						os.path.dirname(full_dest)))
 					self._update_status("Error", self.jobreq['id'])
 					return
 
-			shutil.copyfile(args['_TempDest'], self.jobreq['destination_file'])
+			shutil.copyfile(args['_TempDest'], full_dest)
 			self._update_status("Done", self.jobreq['id'])
 			
 			try:
@@ -270,7 +272,7 @@ class FFmpegJob (threading.Thread):
 
 		except IOError:
 			logging.exception("Job %s: Failed to copy %s to %s" % (
-				self.jobreq['id'],os.path.basename(self.jobreq['source_file']), destleaf
+				self.jobreq['id'],os.path.basename(full_src), destleaf
 			))
 			self._update_status("Error", self.jobreq['id'])
 		

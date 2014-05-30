@@ -25,6 +25,7 @@ Config = {
 	},
 	"tmpfolder": "/data/tmpencoding",
 	"logfile": "/var/log/encode.log",
+	"storage_path": "/path/to/data/store/",
 	
 	"ffmpeg_executable": "ffmpeg",
 }
