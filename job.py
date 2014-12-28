@@ -34,10 +34,10 @@ class FFmpegJob (threading.Thread):
 	""".translate(maketrans("\n\t\r", "\x20"*3))
 	
 	
-	def _update_status(self, status, id):
+	def _update_status(self, status, id, progress=0.0):
 		"""Wrapper to change the DB status of a job """
 		try:
-			self.dbcur.execute("UPDATE encode_jobs SET status=%s WHERE id = %s", (status,id))
+			self.dbcur.execute("UPDATE encode_jobs SET status='%s', progress=%0.2f WHERE id = %s", (status,progress,id))
 			self.dbconn.commit()
 		except:
 			logging.exception("Job %s: Failed to update status in DB", (id))
@@ -213,7 +213,7 @@ class FFmpegJob (threading.Thread):
 
 						if newComplete > complete:
 							complete = newComplete
-							self._update_status("Encoding Pass %d - %d%%" % (_pass, complete), self.jobreq['id'])
+							self._update_status("Encoding Pass %d" % _pass, self.jobreq['id'], complete)
 
 				cmd.wait() # Magic!
 				logging.debug("Done Waiting.")
@@ -259,16 +259,10 @@ class FFmpegJob (threading.Thread):
 					return
 
 			shutil.copyfile(args['_TempDest'], full_dest)
-			self._update_status("Done", self.jobreq['id'])
+
+			#need to copy any ts files to go with the playlist file...
 			
-			try:
-				# Enable the video for watch on-demand
-				self.dbcur.execute("UPDATE video_files SET is_enabled = True, size = %s WHERE id = %s", 
-					(os.path.getsize(args['_TempDest']), self.jobreq['video_id']))
-				print self.dbcur.query
-				self.dbconn.commit()
-			except:
-				logging.debug("Job %s: Unable to update video file status",(self.jobreq['id']))
+			self._update_status("Done", self.jobreq['id'])
 
 		except IOError:
 			logging.exception("Job %s: Failed to copy %s to %s" % (

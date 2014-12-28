@@ -224,6 +224,7 @@ CREATE TABLE encode_jobs (
     destination_file text NOT NULL,
     format_id integer NOT NULL,
     status text NOT NULL,
+    progress double NOT NULL,
     video_id integer,
     working_directory text,
     user_id integer,
@@ -263,6 +264,13 @@ COMMENT ON COLUMN encode_jobs.format_id IS 'ID to identify format type';
 --
 
 COMMENT ON COLUMN encode_jobs.status IS 'Indicates progress of the encode job. Set to "Not Encoding" initially';
+
+
+--
+-- Name: COLUMN encode_jobs.progress; Type: COMMENT; Schema: public
+--
+
+COMMENT ON COLUMN encode_jobs.progress IS 'Indicates progress of the encode job state';
 
 
 --
