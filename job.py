@@ -29,7 +29,7 @@ class FFmpegJob (threading.Thread):
 	%(args_beginning)s -vcodec %(video_codec)s -b:v %(video_bitrate)s
 	%(_VPre)s -pass %(_Pass)s -s %(video_resolution)s -aspect %(aspect_ratio)s
 	%(args_video)s -acodec %(audio_codec)s -ar %(audio_samplerate)s
-	-ab %(audio_bitrate)s %(args_audio)s -threads 0 %(args_end)s -f %(container)s
+	-ab %(audio_bitrate)s %(args_audio)s -threads 0 %(args_end)s %(container)s
 	-y \"%(_TempDest)s\"
 	""".translate(maketrans("\n\t\r", "\x20"*3))
 	
@@ -37,7 +37,7 @@ class FFmpegJob (threading.Thread):
 	def _update_status(self, status, id, progress=0.0):
 		"""Wrapper to change the DB status of a job """
 		try:
-			self.dbcur.execute("UPDATE encode_jobs SET status='%s', progress=%0.2f WHERE id = %s", (status,progress,id))
+			self.dbcur.execute("UPDATE encode_jobs SET status=%s, progress=%s WHERE id = %s", (status,progress,id))
 			self.dbconn.commit()
 		except:
 			logging.exception("Job %s: Failed to update status in DB", (id))
@@ -67,8 +67,8 @@ class FFmpegJob (threading.Thread):
 			
 		# Create temp dir for this job
 		try:
-			dirname = os.path.join(Config['tmpfolder'], "%s--encode--%s" % (
-				os.path.basename(full_src), str(datetime.now()).replace(' ', '-').replace(':', '-')
+			dirname = os.path.join(Config['tmpfolder'], "%s--%s--encode--%s" % (
+				os.path.basename(full_src), os.path.basename(full_dest), str(datetime.now()).replace(' ', '-').replace(':', '-')
 			))
 		except:
 			logging.debug("Job %s - Debug 1 failed", (self.jobreq['id']));
@@ -194,9 +194,9 @@ class FFmpegJob (threading.Thread):
 						d = m.group(1).split(":")
 						d.reverse()						
 						duration = float(d[0])
-						if (d[1]):
+						if (1 in d):
 							duration += int(d[1]) * 60
-					        if (d[2]):
+						if (2 in d):
 							duration += int(d[2]) * 60 * 60
 					
 					m = re.search('time=(.*?) bitrate',line)
@@ -204,9 +204,9 @@ class FFmpegJob (threading.Thread):
 						d = m.group(1).split(":")
 						d.reverse()
 						newComplete = int(float(d[0]))
-						if (d[1]):
+						if (1 in d):
 							newComplete += int(d[1]) * 60
-					        if (d[2]):
+						if (2 in d):
 							newComplete += int(d[2]) * 60 * 60
 
 						newComplete = int(newComplete/duration*50) + (_pass-1)*50
