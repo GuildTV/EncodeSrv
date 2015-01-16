@@ -260,6 +260,11 @@ class FFmpegJob (threading.Thread):
 
 			shutil.copyfile(args['_TempDest'], full_dest)
 
+			# special case for hls encoding, copy the ts files as well as the playlist
+			fileName, fileExtension = os.path.splitext(args['_TempDest'])
+			if(fileExtension == "m3u8"):
+				shutil.copy(os.path.join(os.path.dirname(fileName), "*.ts"), os.path.dirname(full_dest))
+
 			#need to copy any ts files to go with the playlist file...
 			
 			self._update_status("Done", self.jobreq['id'])
