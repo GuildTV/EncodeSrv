@@ -1,5 +1,5 @@
 import threading, Queue
-import os.path, shlex, shutil, logging, time, subprocess, re
+import os.path, shlex, shutil, logging, time, subprocess, re, glob
 from datetime import datetime
 from string import maketrans
 from config import Config
@@ -114,7 +114,7 @@ class FFmpegJob (threading.Thread):
 			args['_PassLogFile'] = os.path.join(dirname, "pass.log")
 	
 			args['_VPre'] = args['preset_string']
-			args['_TempDest'] = os.path.join(dirname, os.path.basename(full_dest))
+			args['_TempDest'] = os.path.join(dirname, os.path.basename(full_dest)).rstrip("\\")
 		except:
 			logging.exception("Job %s - Debug 3 failed", (self.jobreq['id']));
 		
@@ -262,8 +262,9 @@ class FFmpegJob (threading.Thread):
 
 			# special case for hls encoding, copy the ts files as well as the playlist
 			fileName, fileExtension = os.path.splitext(args['_TempDest'])
-			if(fileExtension == "m3u8"):
-				shutil.copy(os.path.join(os.path.dirname(fileName), "*.ts"), os.path.dirname(full_dest))
+                        if(fileExtension == ".m3u8"):
+                                for file in glob.glob(os.path.join(os.path.dirname(fileName), "*.ts")):
+                                        shutil.copy(file, os.path.dirname(full_dest))
 
 			#need to copy any ts files to go with the playlist file...
 			
